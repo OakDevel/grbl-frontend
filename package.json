@@ -21,6 +21,7 @@
   "readmeFilename": "README.md",
   "dependencies": {
     "grbl": "0.0.5",
-    "skateboard": "0.0.0"
+    "skateboard": "~0.1.0",
+    "split": "~0.1.2"
   }
 }
