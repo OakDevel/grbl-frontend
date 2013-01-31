@@ -3,7 +3,7 @@ var skateboard = require('skateboard'),
 
 grbl(function(machine) {
   skateboard({ dir: __dirname + '/public' }, function(stream) {
-    stream.pipe(grbl);
+    stream.pipe(machine);
     machine.pipe(stream);
   });
 });
