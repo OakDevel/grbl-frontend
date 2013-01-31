@@ -18,5 +18,9 @@
   ],
   "author": "Elijah Insua <tmpvar@gmail.com>",
   "license": "MIT",
-  "readmeFilename": "README.md"
+  "readmeFilename": "README.md",
+  "dependencies": {
+    "grbl": "0.0.5",
+    "skateboard": "0.0.0"
+  }
 }
