@@ -1,10 +1,24 @@
 var skateboard = require('skateboard'),
-    grbl = require('grbl');
+    grbl = require('grbl'),
+    activeMachine = null;
 
+var hookup = function(stream) {
+  stream.pipe(activeMachine).pipe(stream);
+  activeMachine.pipe(process.stdout);
+};
 
-  grbl(function(machine) {
-    skateboard({ dir: __dirname + '/public' }, function(stream) {
-      stream.pipe(machine);
-      machine.pipe(stream);
+skateboard({ dir: __dirname + '/public' }, function(stream) {
+
+  if (!activeMachine) {
+    grbl(function(machine) {
+      machine.on('end', function() {
+        activeMachine = false;
+      });
+      activeMachine = machine;
+      hookup(stream);
+      stream.write('ready\n')
     });
-  });
+  } else {
+    hookup(stream);
+  }
+});
