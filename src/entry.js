@@ -3,6 +3,7 @@ var skateboard = require('skateboard/client'),
     ui = require('./ui');
 
 skateboard(function(socket) {
+
   machine = new Machine(socket);
 
   ui(machine);

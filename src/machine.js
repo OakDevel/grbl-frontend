@@ -3,8 +3,8 @@ var split = require('split');
 
 function Machine(stream) {
   this.stream = stream;
-  this.settings = {};
-  this.commandQueue = [];
+  this._settings = {};
+  var commandQueue = this.commandQueue = [];
   this.ready = false;
   this._status = {};
 
@@ -34,29 +34,32 @@ function Machine(stream) {
 
   this.lineStream = stream.pipe(split());
 
+
+  var lines = [], lineStream = this.lineStream, that = this;
+
   this.lineStream.once('data', function(d) {
     if (d.indexOf('ready') > -1) {
       console.log('ready');
       stream.emit('ready');
+
+      lineStream.on('data', function handle(line) {
+        line = line.trim();
+        if (line === 'ok') {
+          if (commandQueue.length > 0) {
+            var fn = commandQueue.shift();
+            fn && fn.call(that, lines.concat([]));
+            lines = [];
+          }
+        } else {
+          lines.push(line);
+        }
+      });
     }
   });
 }
 
 Machine.prototype.collectUntilOk = function(fn) {
-  var lines = [],
-      lineStream = this.lineStream,
-      that = this;
-
-  lineStream.once('data', function handle(line) {
-    line = line.trim();
-    if (line === 'ok') {
-      fn && fn.call(that, lines.concat([]));
-      lines = [];
-    } else {
-      lines.push(line);
-      lineStream.once('data', handle);
-    }
-  });
+  this.commandQueue.push(fn);
 };
 
 Machine.prototype.move = function(obj) {
@@ -67,8 +70,6 @@ Machine.prototype.move = function(obj) {
   });
 
   this.run(parts.join(' '));
-
-
 };
 
 Machine.prototype.status = function(fn) {
@@ -98,6 +99,30 @@ Machine.prototype.status = function(fn) {
     fn && fn(ret);
   });
 };
+
+
+
+Machine.prototype.settings = function(fn) {
+  var matcher = /\$([0-9]+)=([^ ]+) \(([^\)]+)/;
+  this.run('$$', function(lines) {
+
+    console.log('made it to here');
+    var settings = [];
+    lines.forEach(function(line) {
+      var matches = line.match(matcher);
+      if (matches) {
+        settings.push({
+          label : matches.pop(),
+          value : matches.pop(),
+          index : matches.pop()
+        });
+      }
+    });
+
+    this._settings = settings;
+    this.stream.emit('settings', settings);
+  });
+}
 
 Machine.prototype.run = function(cmd, fn) {
   this.stream.write(cmd + '\n');

@@ -5,7 +5,9 @@ module.exports = function(machine) {
     weld(document.getElementById('machine-status'), d)
   });
 
-
+  machine.stream.on('settings', function(d) {
+    weld(document.querySelector('#machine-settings .setting'), d)
+  });
 
   var running = true;
   document.querySelector('#machine-status button').addEventListener('click', function(ev) {
@@ -13,7 +15,4 @@ module.exports = function(machine) {
     running = !running;
     ev.target.innerHTML = running ? 'Pause' : 'Resume';
   });
-
-
-
 };
