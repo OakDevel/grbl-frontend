@@ -17,20 +17,23 @@ function Machine(stream) {
     console.log('CLOSED');
   })
 
+  var that = this;
+
   stream.once('ready', function() {
+    that.settings();
 
-    var that = this;
-    setTimeout(function statusTick() {
+    var timer = null;
+    that.stream.on('status', function(status) {
+      that._status = status;
+      var tickTime = (status.status !== 'idle') ? 100 : 1000;
+      clearTimeout(timer);
+      timer = setTimeout(function statusTick() {
+        that.status();
+      }, 100);
+    });
 
-      that.status(function(status) {
-        that._status = status;
-        var tickTime = (status.status === 'run') ? 100 : 1000;
-
-        setTimeout(statusTick, tickTime);
-      });
-    }, 100);
-
-  }.bind(this));
+    that.status();
+  });
 
   this.lineStream = stream.pipe(split());
 
@@ -43,6 +46,7 @@ function Machine(stream) {
       stream.emit('ready');
 
       lineStream.on('data', function handle(line) {
+        console.log(line);
         line = line.trim();
         if (line === 'ok') {
           if (commandQueue.length > 0) {
@@ -50,6 +54,27 @@ function Machine(stream) {
             fn && fn.call(that, lines.concat([]));
             lines = [];
           }
+        } else if (line.substring(0,1) === '<') {
+
+          var parts = line.replace(/\<|\>/g, '').split(',');
+          var ret = {
+            status : parts.shift().toLowerCase(),
+            position: {
+              machine : {
+                x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
+                y : parseFloat(parts.shift()).toFixed(3),
+                z : parseFloat(parts.shift()).toFixed(3),
+              },
+              work : {
+                x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
+                y : parseFloat(parts.shift()).toFixed(3),
+                z : parseFloat(parts.shift()).toFixed(3),
+              }
+            }
+          };
+
+          that.stream.emit('status', ret);
+
         } else {
           lines.push(line);
         }
@@ -73,51 +98,28 @@ Machine.prototype.move = function(obj) {
 };
 
 Machine.prototype.status = function(fn) {
-  this.run('?', function(lines) {
-    var line = lines.shift();
-    if (!line) { return; }
-
-    var parts = line.replace(/\<|\>/g, '').split(',');
-    var ret = {
-      status : parts.shift().toLowerCase(),
-      position: {
-        machine : {
-          x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
-          y : parseFloat(parts.shift()).toFixed(3),
-          z : parseFloat(parts.shift()).toFixed(3),
-        },
-        work : {
-          x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
-          y : parseFloat(parts.shift()).toFixed(3),
-          z : parseFloat(parts.shift()).toFixed(3),
-        }
-      }
-    };
-
-    this.stream.emit('status', ret);
-
-    fn && fn(ret);
-  });
+  this.stream.write('?');
 };
 
 
 
 Machine.prototype.settings = function(fn) {
-  var matcher = /\$([0-9]+)=([^ ]+) \(([^\)]+)/;
+  var matcher = /\$([0-9]+)=([^ ]+)/;
   this.run('$$', function(lines) {
 
-    console.log('made it to here');
-    var settings = [];
+    var settings = {};
     lines.forEach(function(line) {
       var matches = line.match(matcher);
       if (matches) {
-        settings.push({
-          label : matches.pop(),
-          value : matches.pop(),
-          index : matches.pop()
-        });
+        var val = matches.pop();
+
+        if (line.indexOf('bool') > -1) {
+          val = val === '0' ? false : true;
+        }
+        settings['index-' + matches[1]] = val;
       }
     });
+    console.log(JSON.stringify(settings));
 
     this._settings = settings;
     this.stream.emit('settings', settings);

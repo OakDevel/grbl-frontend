@@ -3,60 +3,110 @@
   <title>grbl frontend</title>
   <script type="text/javascript" src="bundle.js"></script>
   <style type="text/css">
-    html{
+    html, body {
       margin:0;
       padding:0;
       font-family: helvetica;
       color: #666;
       font-size: 1.2em;
+      margin-top: 100px;
+      background: #00B4FF url(data:image/png;base64,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)
+    }
+
+
+
+    #header {
+      height: 100px;
+      margin:0;
+      padding:0;
+      background: #515151;
+      border-bottom:3px #414141 solid;
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
     }
 
     .box {
       border-radius: 5px;
       border: 1px solid #bbb;
       background: #f9f9f9;
-
-
       padding: 10px;
+
+      position:absolute;
+      z-index:10;
+
+      background: #515151;
+      border:1px #414141 solid;
+      box-shadow: 2px 2px 5px 1px rgba(0, 0, 0, .4);
+
+      -webkit-border-radius: 10px;
+      -webkit-border-top-left-radius: 0;
+      -moz-border-radius: 10px;
+      -moz-border-radius-topleft: 0;
+      border-radius: 10px;
+      border-top-left-radius: 0;
 
     }
 
     #machine-status {
       position:absolute;
-      width: 427px;
+      width: 100%;
     }
 
       #machine-status .position {
-        float: right;
+        position:absolute;
+        right:175px;
+        top:1;
       }
 
       #machine-status .position .value {
-        border:1px solid #e0e0e0;
+        border:1px solid #444;
+        background: #666;
         font-size:1.2em;
         font-weight: bold;
-        border-radius: 2px;
-        color: #444;
-        padding:5px;
-        width: ;
+        border-radius: 5px;
+        color: #efefef;
+        padding:0px 5px;
         display:inline-block;
       }
 
-      #machine-status p.status {
+      #machine-status .status {
+        display:none;
         margin:5px;
         margin-bottom:20px;
-        font-size: 1.8em;
+        font-size: 1em;
+        position:absolute;
+        text-align: center;
+        right: 0;
+        width: 90px;
+        top:0;
+        height: 90px;
+        vertical-align: baseline;
+        line-height: 140px;
+        color: #aaa;
       }
+
+        #machine-status .status.connected {
+          background: url('/svg/connected.svg') no-repeat;
+        }
+
+        #machine-status .status.disconnected {
+          background: url('/svg/disconnected.svg') no-repeat;
+          background-size: contain;
+        }
 
       #machine-status .position p {
         margin:5px;
-        line-height: 2em;
+        line-height: 1.75em;
       }
 
       #machine-status .label {
-        width: 75px;
+        width: 100px;
         display:inline-block;
         text-align: right;
-
+        margin-right:0px;
+        color: #aaa;
       }
 
       #machine-status button {
@@ -65,8 +115,9 @@
         border-radius: 5px;
         background: red;
         font-size: 2em;
-        top:10;
-        right:15;
+        top:0;
+        right:5;
+        color: #fff;
       }
 
       #machine-status button {
@@ -86,7 +137,9 @@
         padding: 12px 0 14px 0;
         text-align: center;
         text-shadow: 0px -1px 1px rgba(0, 0, 0, 0.8);
-        width: 100px;
+        width: 160px;
+        height: 90px;
+        margin:5px;
       }
         #machine-status button:hover {
           background-color: #f37873;
@@ -96,7 +149,6 @@
           background-image: -ms-linear-gradient(top, #f37873 0%, #db504d 50%, #cb0500 50%, #a20601 100%);
           background-image: -o-linear-gradient(top, #f37873 0%, #db504d 50%, #cb0500 50%, #a20601 100%);
           background-image: linear-gradient(top, #f37873 0%, #db504d 50%, #cb0500 50%, #a20601 100%);
-          cursor: pointer;
         }
         #machine-status button:active {
           background-color: #d43c28;
@@ -110,10 +162,136 @@
           box-shadow: inset 0px 0px 0px 1px rgba(255, 115, 100, 0.4);
         }
 
+    button:hover {
+      cursor: pointer;
+    }
 
+    #move {
+      width: 190px;
+      height: 125px;
+      top: 200px;
+      left: 10px;
+      padding:0;
+    }
+
+      #move .control {
+        color: white;
+        font-size: 15px;
+        line-height: 45px;
+        text-align:center;
+        border:1px solid #777;
+        border-radius: 5px;
+        width: 50px;
+        height: 50px;
+        position:absolute;
+        background: #616161;
+      }
+
+      #move .yplus {
+        left: 70px;
+        top:5px;
+      }
+
+      #move .yminus {
+        left: 70px;
+        top:70px;
+      }
+
+      #move .xminus {
+        top:70px;
+        left:5;
+      }
+
+      #move .xplus {
+        left: 5px;
+        top:5px;
+      }
+
+      #move .zplus {
+        left: 135px;
+        top:5px;
+      }
+
+      #move .zminus {
+        left: 135px;
+        top:70px;
+      }
+
+    .box h1.hanger {
+      font-size: 16px;
+      line-height:25px;
+      font-weight: bold;
+      color: #999;
+      position:absolute;
+      top: -15px;
+      left: -1px;
+      height:20px;
+      width:100%;
+      z-index:1;
+      background: #414141;
+      border: #313131 solid;
+      border-width: 1px 1px 0px 0px;
+      border-right:none;
+      padding:5px 0px 10px 0px;
+
+      -webkit-border-top-left-radius: 5px;
+      -moz-border-radius-topleft: 5px;
+      border-top-left-radius: 5px;
+
+    }
+
+      .box h1.hanger .close {
+        background:red;
+        position:absolute;
+        display:inline-block;
+        right:-2;
+        top:-1;
+        z-index:0;
+        height:29px;
+        color:white;
+        padding:3px;
+        width:20px;
+        line-height:25px;
+        text-align:center;
+        -webkit-border-top-right-radius: 5px;
+        -moz-border-radius-topright: 5px;
+        border-top-right-radius: 5px;
+
+       /* box-shadow: 2px 2px 5px 1px rgba(0, 0, 0, .4);*/
+
+        border-top:1px solid #e00;
+        border-right:1px solid #e00;
+        text-decoration: none;
+      }
+
+      #drop-gcode {
+        top: 500px;
+        left:10;
+        width: 200px;
+        height:100px;
+        line-height: 100px;
+        text-align:center;
+      }
+
+/*
     #machine-settings {
       position:absolute;
+      width: 650px;
       top: 250px;
+
+      -webkit-border-top-left-radius: 5px;
+      -webkit-border-bottom-left-radius: 5px;
+      -moz-border-radius-topleft: 5px;
+      -moz-border-radius-bottomleft: 5px;
+      border-top-left-radius: 5px;
+      border-bottom-left-radius: 5px;
+
+      -webkit-border-top-right-radius: 0px;
+      -webkit-border-bottom-right-radius: 0px;
+      -moz-border-radius-topright: 0px;
+      -moz-border-radius-bottomright: 0px;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
     }
       #machine-settings ul, #machine-settings li {
         list-style: none;
@@ -123,46 +301,263 @@
 
       #machine-settings span.label {
         display:inline-block;
-        width: 400px;
+        width: 250px;
+        text-align: right
       }
+
+      #machine-settings .settings .heading {
+        width: 120px;
+        display:inline-block;
+        text-align:right;
+      }
+
+
+
+      #machine-settings input[type="text"] {
+        width: 120px;
+        text-align:right;
+        font-size: 1em;
+        line-height:1em;
+        border:1px solid #aaa;
+      }
+
+      .tabs {
+        border-bottom:1px solid #c0c0c0;
+        height: 2em;
+        position:absolute;
+        width: 100%;
+        left:0px;
+        top:0px;
+
+        -webkit-border-top-left-radius: 5px;
+        -webkit-border-top-right-radius: 5px;
+        -moz-border-radius-topleft: 5px;
+        -moz-border-radius-topright: 5px;
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+
+      -webkit-border-top-right-radius: 0px;
+      -webkit-border-bottom-right-radius: 0px;
+      -moz-border-radius-topright: 0px;
+      -moz-border-radius-bottomright: 0px;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+
+        background: #e0e0e0;
+      }
+
+      .tabs li {
+        float:left;
+        width: 120px;
+        text-align:center;
+        line-height: 2em;
+      }
+        .tabs li.tab {
+          border-left: 1px solid #e0e0e0;
+          border-right: 1px solid #e0e0e0;
+          background: #e0e0e0;
+        }
+
+        .tabs li a {
+          text-decoration: none;
+          font-size: 1.2em;
+          padding: 10px;
+          color: black;
+        }
+
+        .tabs li.active {
+          background: #666;
+          border-left: 1px solid #f0f0f0;
+          border-right: 1px solid #f0f0f0;
+        }
+
+        .tabs li.active a {
+          color: #f0f0f0;
+        }
+
+      section.tab {
+
+        margin-top: 20px;
+      }
+
+      section.tab
+
+      section.tab.active {
+        display:block;
+      }*/
+
   </style>
 </head>
 <body>
+  <section id="header">
+    <section id="machine-status">
 
-  <section class="box" id="machine-status">
+      <p class="status disconnected">...</p>
 
-    <p class="status">connecting..</p>
+      <section class="position">
 
-    <section class="position">
+        <p class="machine">
+          <span class="descriptor label">machine</span>
+          <span class="x value">0.000</span>
+          <span class="y value">0.000</span>
+          <span class="z value">0.000</span>
+        </p>
 
-      <p class="machine">
-        <span class="descriptor label">machine</span>
-        <span class="x value">0.000</span>
-        <span class="y value">0.000</span>
-        <span class="z value">0.000</span>
-      </p>
-
-      <p class="work">
-        <span class="descriptor label">work</span>
-        <span class="x value">0.000</span>
-        <span class="y value">0.000</span>
-        <span class="z value">0.000</span>
-      </p>
-    </section>
+        <p class="work">
+          <span class="descriptor label">work</span>
+          <span class="x value">0.000</span>
+          <span class="y value">0.000</span>
+          <span class="z value">0.000</span>
+        </p>
+      </section>
 
 
-    <section class="buttons">
-      <button name="hold">Pause</button>
+      <section class="buttons">
+        <button name="hold">Pause</button>
+      </section>
     </section>
   </section>
 
-  <section class="box" id="machine-settings">
-    <ul class="settings">
-      <li class="setting">
-        <span class="label">label</span>
-        <input type="text" name="value" value="blah"/>
-      </li>
-    </ul>
+
+  <section class="box" id="move">
+    <h1 class="hanger">Manual Control <a class="close" href="#">x</a></h1>
+    <button class="control yplus">y+</button>
+    <button class="control yminus">y-</button>
+    <button class="control xplus">x+</button>
+    <button class="control xminus">x-</button>
+    <button class="control zplus">z+</button>
+    <button class="control zminus">z-</button>
+  </section>
+
+  <section class="box" id="drop-gcode">
+    <h1 class="hanger">Drop gcode <a class="close" href="#">x</a></h1>
+    Drop gcode here
+     <button class="control zminus">z-</button>
+  </section>
+
+
+
+
+  <section style="display:none" class="box" id="machine-settings">
+    <section class="tab active" id="settings-axes">
+      <ul class="settings">
+        <li class="setting">
+          <span class="label"></span>
+          <span class="heading">X</span>
+          <span class="heading">Y</span>
+          <span class="heading">Z</span>
+        </li>
+        <li class="setting">
+          <span class="label">steps per mm</span>
+          <input type="text" name="index-0" value="250" />
+          <input type="text" name="index-1" value="250" />
+          <input type="text" name="index-2" value="250" />
+        </li>
+        <li class="setting">
+          <span class="label">max mm/minute</span>
+          <input type="text" name="index-3" value="250" />
+          <input type="text" name="index-4" value="250" />
+          <input type="text" name="index-5" value="250" />
+        </li>
+        <li class="setting">
+          <span class="label">acceleration mm/sec^2</span>
+          <input type="text" name="index-6" value="250" />
+          <input type="text" name="index-7" value="250" />
+          <input type="text" name="index-8" value="250" />
+        </li>
+      </ul>
+    </section>
+
+    <section class="tab" id="settings-homing">
+      <ul>
+        <li>
+          <span class="label">homing cycle</span>
+          <input type="checkbox" name="index-20" value="0" />
+        </li>
+        <li>
+          <span class="label">invert homing direction</span>
+          step
+          <ul>
+            x<input type="checkbox" name="index-21.step.x" />
+            y<input type="checkbox" name="index-21.step.y" />
+            z<input type="checkbox" name="index-21.step.z" />
+          </ul>
+          direction
+          <ul>
+            x<input type="checkbox" name="index-21.direction.x" />
+            y<input type="checkbox" name="index-21.direction.y" />
+            z<input type="checkbox" name="index-21.direction.z" />
+          </ul>
+        </li>
+        <li>
+          <span class="label">homing feed</span>
+          <input type="text" name="index-22" value="0" /> mm/min
+        </li>
+        <li>
+          <span class="label">homing seek</span>
+          <input type="text" name="index-23" value="0" /> mm/min
+        </li>
+        <li>
+          <span class="label">homing debounce</span>
+          <input type="text" name="index-24" value="0" /> milliseconds
+        </li>
+        </li>
+        <li>
+          <span class="label">homing pull-off</span>
+          <input type="text" name="index-25" value="0" /> mm
+        </li>
+      </ul>
+    </section>
+
+    <section class="tab" id="settings-advanced">
+      <ul>
+        <li>
+          <span class="label">step pulse</span>
+          <input type="text" name="index-9"  value="10" /> microseconds
+        </li>
+        <li>
+          <span class="label">default feed</span>
+          <input type="text" name="index-10" value="250.000" /> mm/min
+        </li>
+        <li>
+          <span class="label">step port invert mask</span>
+          <input type="text" name="index-11" value="192" />
+        </li>
+        <li>
+          <span class="label">step idle delay</span>
+          <input type="text" name="index-12" value="25" /> milliseconds
+        </li>
+        <li>
+          <span class="label">junction deviation</span>
+          <input type="text" name="index-13" value="0.050" /> mm
+        </li>
+        <li>
+          <span class="label">arc tolerance</span>
+          <input type="text" name="index-14" value="0.005" /> mm
+        </li>
+        <li>
+          <span class="label">decimal places</span>
+          <input type="text" name="index-15" value="3" />
+        </li>
+        <li>
+          <span class="label">report inches</span>
+          <input type="checkbox" name="index-16" value="0" />
+        </li>
+        <li>
+          <span class="label">auto start</span>
+          <input type="checkbox" name="index-17" value="1" />
+        </li>
+        <li>
+          <span class="label">invert step enable</span>
+          <input type="checkbox" name="index-18" value="0" />
+        </li>
+        <li>
+          <span class="label">hard limits</span>
+          <input type="checkbox" name="index-19" value="0" />
+        </li>
+      </ul>
+    </section>
+
 
     <section class="controls">
       <button name="save">Save</button>

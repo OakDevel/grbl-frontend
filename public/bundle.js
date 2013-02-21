@@ -452,7 +452,6 @@ function Skateboard(socket) {
   });
 
   var handleConnection = function() {
-    socket.send('hello!');
     that.emit('connection');
   };
 
@@ -1138,140 +1137,6 @@ exports.format = function(f) {
 
 });
 
-require.define("/src/machine.js",function(require,module,exports,__dirname,__filename,process,global){var split = require('split');
-
-
-function Machine(stream) {
-  this.stream = stream;
-  this._settings = {};
-  var commandQueue = this.commandQueue = [];
-  this.ready = false;
-  this._status = {};
-
-  stream.on('close', function() {
-    console.log('CLOSED');
-  })
-
-
-  stream.on('error', function() {
-    console.log('CLOSED');
-  })
-
-  stream.once('ready', function() {
-
-    var that = this;
-    setTimeout(function statusTick() {
-
-      that.status(function(status) {
-        that._status = status;
-        var tickTime = (status.status === 'run') ? 100 : 1000;
-
-        setTimeout(statusTick, tickTime);
-      });
-    }, 100);
-
-  }.bind(this));
-
-  this.lineStream = stream.pipe(split());
-
-
-  var lines = [], lineStream = this.lineStream, that = this;
-
-  this.lineStream.once('data', function(d) {
-    if (d.indexOf('ready') > -1) {
-      console.log('ready');
-      stream.emit('ready');
-
-      lineStream.on('data', function handle(line) {
-        line = line.trim();
-        if (line === 'ok') {
-          if (commandQueue.length > 0) {
-            var fn = commandQueue.shift();
-            fn && fn.call(that, lines.concat([]));
-            lines = [];
-          }
-        } else {
-          lines.push(line);
-        }
-      });
-    }
-  });
-}
-
-Machine.prototype.collectUntilOk = function(fn) {
-  this.commandQueue.push(fn);
-};
-
-Machine.prototype.move = function(obj) {
-  var parts = [obj.op || 'G0'];
-  delete obj.op;
-  Object.keys(obj).forEach(function(key) {
-    parts.push(key + obj[key]);
-  });
-
-  this.run(parts.join(' '));
-};
-
-Machine.prototype.status = function(fn) {
-  this.run('?', function(lines) {
-    var line = lines.shift();
-    if (!line) { return; }
-
-    var parts = line.replace(/\<|\>/g, '').split(',');
-    var ret = {
-      status : parts.shift().toLowerCase(),
-      position: {
-        machine : {
-          x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
-          y : parseFloat(parts.shift()).toFixed(3),
-          z : parseFloat(parts.shift()).toFixed(3),
-        },
-        work : {
-          x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
-          y : parseFloat(parts.shift()).toFixed(3),
-          z : parseFloat(parts.shift()).toFixed(3),
-        }
-      }
-    };
-
-    this.stream.emit('status', ret);
-
-    fn && fn(ret);
-  });
-};
-
-
-
-Machine.prototype.settings = function(fn) {
-  var matcher = /\$([0-9]+)=([^ ]+) \(([^\)]+)/;
-  this.run('$$', function(lines) {
-
-    console.log('made it to here');
-    var settings = [];
-    lines.forEach(function(line) {
-      var matches = line.match(matcher);
-      if (matches) {
-        settings.push({
-          label : matches.pop(),
-          value : matches.pop(),
-          index : matches.pop()
-        });
-      }
-    });
-
-    this._settings = settings;
-    this.stream.emit('settings', settings);
-  });
-}
-
-Machine.prototype.run = function(cmd, fn) {
-  this.stream.write(cmd + '\n');
-  this.collectUntilOk(fn);
-};
-
-module.exports = Machine;
-});
-
 require.define("/node_modules/split/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {}
 });
 
@@ -1428,22 +1293,54 @@ function through (write, end) {
 
 });
 
-require.define("/src/ui.js",function(require,module,exports,__dirname,__filename,process,global){var weld = require('weld').weld;
+require.define("/src/ui.js",function(require,module,exports,__dirname,__filename,process,global){var weld = require('weld').weld,
+    $ = require('qwery');
+
+var on = function(sel, name, fn) {
+  var el = $(sel);
+  if (el.length) {
+    for (var i=0; i<el.length; i++) {
+      el[i].addEventListener(name, fn);
+    }
+  }
+};
+
+var off = function(sel, name, fn) {
+  var el = $(sel);
+  if (el.length) {
+    for (var i=0; i<el.length; i++) {
+      el[i].addEventListener(name, fn);
+    }
+  }
+};
 
 module.exports = function(machine) {
+  document.getElementById('machine-status').setAttribute('class', "status connected");
+
+
+  var running = true;
   machine.stream.on('status', function(d) {
+
+    if (d.status === 'hold') {
+      running = false;
+      document.querySelector('#machine-status button').innerHTML = 'Pausing...';
+    } else if (d.status === 'queue') {
+      running = false;
+      document.querySelector('#machine-status button').innerHTML = 'Resume';
+    } else {
+      running = true;
+      document.querySelector('#machine-status button').innerHTML = 'Pause';
+    }
+
     weld(document.getElementById('machine-status'), d)
   });
 
   machine.stream.on('settings', function(d) {
-    weld(document.querySelector('#machine-settings .setting'), d)
+    weld(document.querySelector('#machine-settings'), d)
   });
 
-  var running = true;
   document.querySelector('#machine-status button').addEventListener('click', function(ev) {
     machine.run(running ? '!' : '~');
-    running = !running;
-    ev.target.innerHTML = running ? 'Pause' : 'Resume';
   });
 };
 
@@ -1486,7 +1383,7 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
       {
         throw new TypeError("Object.keys called on a non-object");
       }
-    
+
       var keys = [];
       for (var name in object) {
         if (object.hasOwnProperty(name)) {
@@ -1507,54 +1404,90 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
   }
 
 
+  /*  Let us play nice with IE
+   *  https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/indexOf#Compatibility
+   */
+  if (!Array.prototype.indexOf) {
+    Array.prototype.indexOf = function (searchElement /*, fromIndex */ ) {
+      "use strict";
+      if (this == null) {
+        throw new TypeError();
+      }
+      var t = Object(this);
+      var len = t.length >>> 0;
+      if (len === 0) {
+        return -1;
+      }
+      var n = 0;
+      if (arguments.length > 0) {
+        n = Number(arguments[1]);
+        if (n != n) { // shortcut for verifying if it's NaN
+          n = 0;
+        } else if (n != 0 && n != Infinity && n != -Infinity) {
+          n = (n > 0 || -1) * Math.floor(Math.abs(n));
+        }
+      }
+      if (n >= len) {
+        return -1;
+      }
+      var k = n >= 0 ? n : Math.max(len - Math.abs(n), 0);
+      for (; k < len; k++) {
+        if (k in t && t[k] === searchElement) {
+          return k;
+        }
+      }
+      return -1;
+    }
+  }
+
+
   // Start: DEBUGGING
   // ----------------
-  
+
   /*  Since weld runs browser/server, ensure there is a console implementation.
    */
 
   var logger = (typeof console === 'undefined') ? { log : function(){} } : console;
   var nodejs = false;
 
-  if (typeof require !== 'undefined' && !exports.define) {
-    var tty = require('tty');
-    if (tty.isatty && tty.isatty(0)) {
-      nodejs = true;
-    }
+  if (typeof process !== 'undefined' && process.title) {
+    nodejs = true;
   }
-  
-  var color = { 
-    gray: '\033[37m', 
-    darkgray: '\033[40;30m', 
-    red: '\033[31m', 
-    green: '\033[32m', 
-    yellow: '\033[33m', 
-    lightblue: '\033[1;34m', 
-    cyan: '\033[36m', 
-    white: '\033[1;37m' 
-  };  
-  
-  var inputRegex = /input|select|textarea|option|button/i;
+
+  var color = {
+    gray: '\033[37m',
+    darkgray: '\033[40;30m',
+    red: '\033[31m',
+    green: '\033[32m',
+    yellow: '\033[33m',
+    lightblue: '\033[1;34m',
+    cyan: '\033[36m',
+    white: '\033[1;37m'
+  };
+
+  var inputRegex = /input|select|option|button/i;
   var imageRegex = /img/i;
+  var textareaRegex = /textarea/i;
+  var truthyRegex = /yes|true|1|ok/i;
   var depth = 0;  // The current depth of the traversal, used for debugging.
   var successIndicator = nodejs ? (color.green + ' ✓' + color.gray) : ' Success';
   var failureIndicator = nodejs ? (color.red + ' ✗' + color.gray) : ' Fail';
 
   var debuggable = function debuggable(name, operation) {
-  
+
     var label = name.toUpperCase();
 
     // All of the ops have the same signature, so this is sane.
     return function(parent, element, key, value) {
       logger.log(
-        pad(), 
+        pad(),
         ((nodejs ? (color.gray + '┌ ') : '+ ') + label + ' -'),
-        'parent:', colorize(parent) + ',', 
-        'element:', colorize(element) + ',', 
-        'key:', colorize(key) + ',', 
+        'parent:', colorize(parent) + ',',
+        'element:', colorize(element) + ',',
+        'key:', colorize(key) + ',',
         'value:', colorize(value)
       );
-          
+
       depth+=1;
 
       if (operation) {
@@ -1580,7 +1513,7 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
     return ret;
   };
 
-  /*  Debugger statement, terse, accepts any number of arguments 
+  /*  Debugger statement, terse, accepts any number of arguments
    *  that are passed to a logger.log statement.
    */
 
@@ -1618,7 +1551,7 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
    *    The configuration object.
    */
   exports.weld = function weld(DOMTarget, data, pconfig) {
-    
+
     var parent = DOMTarget.parentNode;
     var currentOpKey, p, fn, debug;
 
@@ -1631,7 +1564,7 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
      *  @method {Boolean|Function}
      *    Determines the method of insertion, can be a functon or false.
      */
-    
+
     var config = {
       alias : {},
       debug : false,
@@ -1649,9 +1582,9 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
 
     debug = config.debug;
 
-    /*  An interface to the interal operations, implements common 
+    /*  An interface to the interal operations, implements common
      *  debugging output based on a standard set of parameters.
-     *  
+     *
      *  @param {Function} operation
      *    The function to call in "debug mode"
      */
@@ -1719,11 +1652,11 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
         var templateParent = element.parentNode;
 
         // LEAF
-        
+
         if(~({}).toString.call(value).indexOf('Date')) {
           value = value.toString();
         }
-        
+
         if (value.nodeType || typeof value !== 'object') {
           ops.set(parent, element, key, value);
 
@@ -1791,6 +1724,10 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
             if (imageRegex.test(nodeName)) {
               return 'image';
             }
+
+            if (textareaRegex.test(nodeName)) {
+              return 'textarea';
+            }
           }
         }
       },
@@ -1831,11 +1768,28 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
           res = true;
         }
         else if (type === 'input') { // special cases.
-          element.setAttribute('value', value);
+          if (element.type.toLowerCase() === 'checkbox') {
+
+            if (truthyRegex.test(value)) {
+              element.setAttribute('checked', true);
+            } else if (element.hasAttribute('checked')) {
+              element.removeAttribute('checked');
+            }
+          } else {
+            element.setAttribute('value', value);
+          }
           res = true;
         }
         else if (type === 'image') {
           element.setAttribute('src', value);
+          res = true;
+        }
+        else if (type === 'textarea') {
+          element.textContent = value;
+          if (element.value !== value) {
+            // Here's looking at you Opera.
+            element.value = value;
+          }
           res = true;
         }
         else { // simple text assignment.
@@ -1856,8 +1810,8 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
             key = config.alias[key];
           }
         }
-        
-        // Alias can be a node, for explicit binding. 
+
+        // Alias can be a node, for explicit binding.
         // Alias can also be a method that returns a string or DOMElement
         if (key && key.nodeType) {
           return key;
@@ -1908,15 +1862,519 @@ require.define("/node_modules/weld/lib/weld.js",function(require,module,exports,
     define('weld',[], function() {return window.weld });
   }
 
-})((typeof exports === "undefined") ? window : exports);
-
-
+}(typeof process !== 'undefined' && typeof process.title !== 'undefined' ? exports : window));
 
 });
 
-require.define("tty",function(require,module,exports,__dirname,__filename,process,global){exports.isatty = function () {};
-exports.setRawMode = function () {};
+require.define("/node_modules/qwery/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"./qwery.js"}
+});
 
+require.define("/node_modules/qwery/qwery.js",function(require,module,exports,__dirname,__filename,process,global){/*!
+  * @preserve Qwery - A Blazing Fast query selector engine
+  * https://github.com/ded/qwery
+  * copyright Dustin Diaz 2012
+  * MIT License
+  */
+
+(function (name, context, definition) {
+  if (typeof module != 'undefined' && module.exports) module.exports = definition()
+  else if (typeof define == 'function' && define.amd) define(definition)
+  else context[name] = definition()
+})('qwery', this, function () {
+  var doc = document
+    , html = doc.documentElement
+    , byClass = 'getElementsByClassName'
+    , byTag = 'getElementsByTagName'
+    , qSA = 'querySelectorAll'
+    , useNativeQSA = 'useNativeQSA'
+    , tagName = 'tagName'
+    , nodeType = 'nodeType'
+    , select // main select() method, assign later
+
+    , id = /#([\w\-]+)/
+    , clas = /\.[\w\-]+/g
+    , idOnly = /^#([\w\-]+)$/
+    , classOnly = /^\.([\w\-]+)$/
+    , tagOnly = /^([\w\-]+)$/
+    , tagAndOrClass = /^([\w]+)?\.([\w\-]+)$/
+    , splittable = /(^|,)\s*[>~+]/
+    , normalizr = /^\s+|\s*([,\s\+\~>]|$)\s*/g
+    , splitters = /[\s\>\+\~]/
+    , splittersMore = /(?![\s\w\-\/\?\&\=\:\.\(\)\!,@#%<>\{\}\$\*\^'"]*\]|[\s\w\+\-]*\))/
+    , specialChars = /([.*+?\^=!:${}()|\[\]\/\\])/g
+    , simple = /^(\*|[a-z0-9]+)?(?:([\.\#]+[\w\-\.#]+)?)/
+    , attr = /\[([\w\-]+)(?:([\|\^\$\*\~]?\=)['"]?([ \w\-\/\?\&\=\:\.\(\)\!,@#%<>\{\}\$\*\^]+)["']?)?\]/
+    , pseudo = /:([\w\-]+)(\(['"]?([^()]+)['"]?\))?/
+    , easy = new RegExp(idOnly.source + '|' + tagOnly.source + '|' + classOnly.source)
+    , dividers = new RegExp('(' + splitters.source + ')' + splittersMore.source, 'g')
+    , tokenizr = new RegExp(splitters.source + splittersMore.source)
+    , chunker = new RegExp(simple.source + '(' + attr.source + ')?' + '(' + pseudo.source + ')?')
+
+  var walker = {
+      ' ': function (node) {
+        return node && node !== html && node.parentNode
+      }
+    , '>': function (node, contestant) {
+        return node && node.parentNode == contestant.parentNode && node.parentNode
+      }
+    , '~': function (node) {
+        return node && node.previousSibling
+      }
+    , '+': function (node, contestant, p1, p2) {
+        if (!node) return false
+        return (p1 = previous(node)) && (p2 = previous(contestant)) && p1 == p2 && p1
+      }
+    }
+
+  function cache() {
+    this.c = {}
+  }
+  cache.prototype = {
+    g: function (k) {
+      return this.c[k] || undefined
+    }
+  , s: function (k, v, r) {
+      v = r ? new RegExp(v) : v
+      return (this.c[k] = v)
+    }
+  }
+
+  var classCache = new cache()
+    , cleanCache = new cache()
+    , attrCache = new cache()
+    , tokenCache = new cache()
+
+  function classRegex(c) {
+    return classCache.g(c) || classCache.s(c, '(^|\\s+)' + c + '(\\s+|$)', 1)
+  }
+
+  // not quite as fast as inline loops in older browsers so don't use liberally
+  function each(a, fn) {
+    var i = 0, l = a.length
+    for (; i < l; i++) fn(a[i])
+  }
+
+  function flatten(ar) {
+    for (var r = [], i = 0, l = ar.length; i < l; ++i) arrayLike(ar[i]) ? (r = r.concat(ar[i])) : (r[r.length] = ar[i])
+    return r
+  }
+
+  function arrayify(ar) {
+    var i = 0, l = ar.length, r = []
+    for (; i < l; i++) r[i] = ar[i]
+    return r
+  }
+
+  function previous(n) {
+    while (n = n.previousSibling) if (n[nodeType] == 1) break;
+    return n
+  }
+
+  function q(query) {
+    return query.match(chunker)
+  }
+
+  // called using `this` as element and arguments from regex group results.
+  // given => div.hello[title="world"]:foo('bar')
+  // div.hello[title="world"]:foo('bar'), div, .hello, [title="world"], title, =, world, :foo('bar'), foo, ('bar'), bar]
+  function interpret(whole, tag, idsAndClasses, wholeAttribute, attribute, qualifier, value, wholePseudo, pseudo, wholePseudoVal, pseudoVal) {
+    var i, m, k, o, classes
+    if (this[nodeType] !== 1) return false
+    if (tag && tag !== '*' && this[tagName] && this[tagName].toLowerCase() !== tag) return false
+    if (idsAndClasses && (m = idsAndClasses.match(id)) && m[1] !== this.id) return false
+    if (idsAndClasses && (classes = idsAndClasses.match(clas))) {
+      for (i = classes.length; i--;) if (!classRegex(classes[i].slice(1)).test(this.className)) return false
+    }
+    if (pseudo && qwery.pseudos[pseudo] && !qwery.pseudos[pseudo](this, pseudoVal)) return false
+    if (wholeAttribute && !value) { // select is just for existance of attrib
+      o = this.attributes
+      for (k in o) {
+        if (Object.prototype.hasOwnProperty.call(o, k) && (o[k].name || k) == attribute) {
+          return this
+        }
+      }
+    }
+    if (wholeAttribute && !checkAttr(qualifier, getAttr(this, attribute) || '', value)) {
+      // select is for attrib equality
+      return false
+    }
+    return this
+  }
+
+  function clean(s) {
+    return cleanCache.g(s) || cleanCache.s(s, s.replace(specialChars, '\\$1'))
+  }
+
+  function checkAttr(qualify, actual, val) {
+    switch (qualify) {
+    case '=':
+      return actual == val
+    case '^=':
+      return actual.match(attrCache.g('^=' + val) || attrCache.s('^=' + val, '^' + clean(val), 1))
+    case '$=':
+      return actual.match(attrCache.g('$=' + val) || attrCache.s('$=' + val, clean(val) + '$', 1))
+    case '*=':
+      return actual.match(attrCache.g(val) || attrCache.s(val, clean(val), 1))
+    case '~=':
+      return actual.match(attrCache.g('~=' + val) || attrCache.s('~=' + val, '(?:^|\\s+)' + clean(val) + '(?:\\s+|$)', 1))
+    case '|=':
+      return actual.match(attrCache.g('|=' + val) || attrCache.s('|=' + val, '^' + clean(val) + '(-|$)', 1))
+    }
+    return 0
+  }
+
+  // given a selector, first check for simple cases then collect all base candidate matches and filter
+  function _qwery(selector, _root) {
+    var r = [], ret = [], i, l, m, token, tag, els, intr, item, root = _root
+      , tokens = tokenCache.g(selector) || tokenCache.s(selector, selector.split(tokenizr))
+      , dividedTokens = selector.match(dividers)
+
+    if (!tokens.length) return r
+
+    token = (tokens = tokens.slice(0)).pop() // copy cached tokens, take the last one
+    if (tokens.length && (m = tokens[tokens.length - 1].match(idOnly))) root = byId(_root, m[1])
+    if (!root) return r
+
+    intr = q(token)
+    // collect base candidates to filter
+    els = root !== _root && root[nodeType] !== 9 && dividedTokens && /^[+~]$/.test(dividedTokens[dividedTokens.length - 1]) ?
+      function (r) {
+        while (root = root.nextSibling) {
+          root[nodeType] == 1 && (intr[1] ? intr[1] == root[tagName].toLowerCase() : 1) && (r[r.length] = root)
+        }
+        return r
+      }([]) :
+      root[byTag](intr[1] || '*')
+    // filter elements according to the right-most part of the selector
+    for (i = 0, l = els.length; i < l; i++) {
+      if (item = interpret.apply(els[i], intr)) r[r.length] = item
+    }
+    if (!tokens.length) return r
+
+    // filter further according to the rest of the selector (the left side)
+    each(r, function (e) { if (ancestorMatch(e, tokens, dividedTokens)) ret[ret.length] = e })
+    return ret
+  }
+
+  // compare element to a selector
+  function is(el, selector, root) {
+    if (isNode(selector)) return el == selector
+    if (arrayLike(selector)) return !!~flatten(selector).indexOf(el) // if selector is an array, is el a member?
+
+    var selectors = selector.split(','), tokens, dividedTokens
+    while (selector = selectors.pop()) {
+      tokens = tokenCache.g(selector) || tokenCache.s(selector, selector.split(tokenizr))
+      dividedTokens = selector.match(dividers)
+      tokens = tokens.slice(0) // copy array
+      if (interpret.apply(el, q(tokens.pop())) && (!tokens.length || ancestorMatch(el, tokens, dividedTokens, root))) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // given elements matching the right-most part of a selector, filter out any that don't match the rest
+  function ancestorMatch(el, tokens, dividedTokens, root) {
+    var cand
+    // recursively work backwards through the tokens and up the dom, covering all options
+    function crawl(e, i, p) {
+      while (p = walker[dividedTokens[i]](p, e)) {
+        if (isNode(p) && (interpret.apply(p, q(tokens[i])))) {
+          if (i) {
+            if (cand = crawl(p, i - 1, p)) return cand
+          } else return p
+        }
+      }
+    }
+    return (cand = crawl(el, tokens.length - 1, el)) && (!root || isAncestor(cand, root))
+  }
+
+  function isNode(el, t) {
+    return el && typeof el === 'object' && (t = el[nodeType]) && (t == 1 || t == 9)
+  }
+
+  function uniq(ar) {
+    var a = [], i, j;
+    o:
+    for (i = 0; i < ar.length; ++i) {
+      for (j = 0; j < a.length; ++j) if (a[j] == ar[i]) continue o
+      a[a.length] = ar[i]
+    }
+    return a
+  }
+
+  function arrayLike(o) {
+    return (typeof o === 'object' && isFinite(o.length))
+  }
+
+  function normalizeRoot(root) {
+    if (!root) return doc
+    if (typeof root == 'string') return qwery(root)[0]
+    if (!root[nodeType] && arrayLike(root)) return root[0]
+    return root
+  }
+
+  function byId(root, id, el) {
+    // if doc, query on it, else query the parent doc or if a detached fragment rewrite the query and run on the fragment
+    return root[nodeType] === 9 ? root.getElementById(id) :
+      root.ownerDocument &&
+        (((el = root.ownerDocument.getElementById(id)) && isAncestor(el, root) && el) ||
+          (!isAncestor(root, root.ownerDocument) && select('[id="' + id + '"]', root)[0]))
+  }
+
+  function qwery(selector, _root) {
+    var m, el, root = normalizeRoot(_root)
+
+    // easy, fast cases that we can dispatch with simple DOM calls
+    if (!root || !selector) return []
+    if (selector === window || isNode(selector)) {
+      return !_root || (selector !== window && isNode(root) && isAncestor(selector, root)) ? [selector] : []
+    }
+    if (selector && arrayLike(selector)) return flatten(selector)
+    if (m = selector.match(easy)) {
+      if (m[1]) return (el = byId(root, m[1])) ? [el] : []
+      if (m[2]) return arrayify(root[byTag](m[2]))
+      if (hasByClass && m[3]) return arrayify(root[byClass](m[3]))
+    }
+
+    return select(selector, root)
+  }
+
+  // where the root is not document and a relationship selector is first we have to
+  // do some awkward adjustments to get it to work, even with qSA
+  function collectSelector(root, collector) {
+    return function (s) {
+      var oid, nid
+      if (splittable.test(s)) {
+        if (root[nodeType] !== 9) {
+          // make sure the el has an id, rewrite the query, set root to doc and run it
+          if (!(nid = oid = root.getAttribute('id'))) root.setAttribute('id', nid = '__qwerymeupscotty')
+          s = '[id="' + nid + '"]' + s // avoid byId and allow us to match context element
+          collector(root.parentNode || root, s, true)
+          oid || root.removeAttribute('id')
+        }
+        return;
+      }
+      s.length && collector(root, s, false)
+    }
+  }
+
+  var isAncestor = 'compareDocumentPosition' in html ?
+    function (element, container) {
+      return (container.compareDocumentPosition(element) & 16) == 16
+    } : 'contains' in html ?
+    function (element, container) {
+      container = container[nodeType] === 9 || container == window ? html : container
+      return container !== element && container.contains(element)
+    } :
+    function (element, container) {
+      while (element = element.parentNode) if (element === container) return 1
+      return 0
+    }
+  , getAttr = function () {
+      // detect buggy IE src/href getAttribute() call
+      var e = doc.createElement('p')
+      return ((e.innerHTML = '<a href="#x">x</a>') && e.firstChild.getAttribute('href') != '#x') ?
+        function (e, a) {
+          return a === 'class' ? e.className : (a === 'href' || a === 'src') ?
+            e.getAttribute(a, 2) : e.getAttribute(a)
+        } :
+        function (e, a) { return e.getAttribute(a) }
+    }()
+  , hasByClass = !!doc[byClass]
+    // has native qSA support
+  , hasQSA = doc.querySelector && doc[qSA]
+    // use native qSA
+  , selectQSA = function (selector, root) {
+      var result = [], ss, e
+      try {
+        if (root[nodeType] === 9 || !splittable.test(selector)) {
+          // most work is done right here, defer to qSA
+          return arrayify(root[qSA](selector))
+        }
+        // special case where we need the services of `collectSelector()`
+        each(ss = selector.split(','), collectSelector(root, function (ctx, s) {
+          e = ctx[qSA](s)
+          if (e.length == 1) result[result.length] = e.item(0)
+          else if (e.length) result = result.concat(arrayify(e))
+        }))
+        return ss.length > 1 && result.length > 1 ? uniq(result) : result
+      } catch (ex) { }
+      return selectNonNative(selector, root)
+    }
+    // no native selector support
+  , selectNonNative = function (selector, root) {
+      var result = [], items, m, i, l, r, ss
+      selector = selector.replace(normalizr, '$1')
+      if (m = selector.match(tagAndOrClass)) {
+        r = classRegex(m[2])
+        items = root[byTag](m[1] || '*')
+        for (i = 0, l = items.length; i < l; i++) {
+          if (r.test(items[i].className)) result[result.length] = items[i]
+        }
+        return result
+      }
+      // more complex selector, get `_qwery()` to do the work for us
+      each(ss = selector.split(','), collectSelector(root, function (ctx, s, rewrite) {
+        r = _qwery(s, ctx)
+        for (i = 0, l = r.length; i < l; i++) {
+          if (ctx[nodeType] === 9 || rewrite || isAncestor(r[i], root)) result[result.length] = r[i]
+        }
+      }))
+      return ss.length > 1 && result.length > 1 ? uniq(result) : result
+    }
+  , configure = function (options) {
+      // configNativeQSA: use fully-internal selector or native qSA where present
+      if (typeof options[useNativeQSA] !== 'undefined')
+        select = !options[useNativeQSA] ? selectNonNative : hasQSA ? selectQSA : selectNonNative
+    }
+
+  configure({ useNativeQSA: true })
+
+  qwery.configure = configure
+  qwery.uniq = uniq
+  qwery.is = is
+  qwery.pseudos = {}
+
+  return qwery
+});
+
+});
+
+require.define("/src/machine.js",function(require,module,exports,__dirname,__filename,process,global){var split = require('split');
+
+
+function Machine(stream) {
+  this.stream = stream;
+  this._settings = {};
+  var commandQueue = this.commandQueue = [];
+  this.ready = false;
+  this._status = {};
+
+  stream.on('close', function() {
+    console.log('CLOSED');
+  })
+
+
+  stream.on('error', function() {
+    console.log('CLOSED');
+  })
+
+  var that = this;
+
+  stream.once('ready', function() {
+    that.settings();
+
+    var timer = null;
+    that.stream.on('status', function(status) {
+      that._status = status;
+      var tickTime = (status.status !== 'idle') ? 100 : 1000;
+      clearTimeout(timer);
+      timer = setTimeout(function statusTick() {
+        that.status();
+      }, 100);
+    });
+
+    that.status();
+  });
+
+  this.lineStream = stream.pipe(split());
+
+
+  var lines = [], lineStream = this.lineStream, that = this;
+
+  this.lineStream.once('data', function(d) {
+    if (d.indexOf('ready') > -1) {
+      console.log('ready');
+      stream.emit('ready');
+
+      lineStream.on('data', function handle(line) {
+        console.log(line);
+        line = line.trim();
+        if (line === 'ok') {
+          if (commandQueue.length > 0) {
+            var fn = commandQueue.shift();
+            fn && fn.call(that, lines.concat([]));
+            lines = [];
+          }
+        } else if (line.substring(0,1) === '<') {
+
+          var parts = line.replace(/\<|\>/g, '').split(',');
+          var ret = {
+            status : parts.shift().toLowerCase(),
+            position: {
+              machine : {
+                x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
+                y : parseFloat(parts.shift()).toFixed(3),
+                z : parseFloat(parts.shift()).toFixed(3),
+              },
+              work : {
+                x : parseFloat(parts.shift().replace(/^[a-z:]+/gi,'')).toFixed(3),
+                y : parseFloat(parts.shift()).toFixed(3),
+                z : parseFloat(parts.shift()).toFixed(3),
+              }
+            }
+          };
+
+          that.stream.emit('status', ret);
+
+        } else {
+          lines.push(line);
+        }
+      });
+    }
+  });
+}
+
+Machine.prototype.collectUntilOk = function(fn) {
+  this.commandQueue.push(fn);
+};
+
+Machine.prototype.move = function(obj) {
+  var parts = [obj.op || 'G0'];
+  delete obj.op;
+  Object.keys(obj).forEach(function(key) {
+    parts.push(key + obj[key]);
+  });
+
+  this.run(parts.join(' '));
+};
+
+Machine.prototype.status = function(fn) {
+  this.stream.write('?');
+};
+
+
+
+Machine.prototype.settings = function(fn) {
+  var matcher = /\$([0-9]+)=([^ ]+)/;
+  this.run('$$', function(lines) {
+
+    var settings = {};
+    lines.forEach(function(line) {
+      var matches = line.match(matcher);
+      if (matches) {
+        var val = matches.pop();
+
+        if (line.indexOf('bool') > -1) {
+          val = val === '0' ? false : true;
+        }
+        settings['index-' + matches[1]] = val;
+      }
+    });
+    console.log(JSON.stringify(settings));
+
+    this._settings = settings;
+    this.stream.emit('settings', settings);
+  });
+}
+
+Machine.prototype.run = function(cmd, fn) {
+  this.stream.write(cmd + '\n');
+  this.collectUntilOk(fn);
+};
+
+module.exports = Machine;
 });
 
 require.define("/src/entry.js",function(require,module,exports,__dirname,__filename,process,global){var skateboard = require('skateboard/client'),

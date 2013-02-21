@@ -21,8 +21,8 @@
   "readmeFilename": "README.md",
   "dependencies": {
     "grbl": "0.0.7",
-    "skateboard": "~0.1.0",
+    "skateboard": "~0.1.4",
     "split": "~0.1.2",
-    "weld": "~0.2.2"
+    "weld": "git://github.com/hij1nx/weld.git"
   }
 }
